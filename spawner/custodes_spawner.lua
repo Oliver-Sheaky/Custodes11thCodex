@@ -1,14 +1,14 @@
 --[[ CUSTODES_SPAWNER
-  Adeptus Custodes toolkit spawner for Tabletop Simulator
+  Adeptus Custodes toolkit spawner for Tabletop Simulator (lives on a model)
   Spawns detachment rule cards and stratagem decks, army rules, ka'tah stances,
   the ka'tah token (7 states), marker tokens and custom D6s.
 
   SETUP: upload the custodes_tts_kit folder to a public GitHub repo, then set BASE_URL
   below to that repo's raw address, keeping the slash at the end.
 
-  AUTO-UPDATE: every time the board loads, it downloads this file from BASE_URL and,
+  AUTO-UPDATE: every time the model loads, it downloads this file from BASE_URL and,
   if the copy on GitHub is different, installs it and reloads. Edit the script on
-  GitHub and every copy of the board picks up the change the next time it loads.
+  GitHub and every copy of the model picks up the change the next time it loads.
 ]]
 
 BASE_URL = "https://raw.githubusercontent.com/Oliver-Sheaky/Custodes11thCodex/main/"
@@ -17,7 +17,7 @@ KATAH_TOKEN_COUNT = 6      -- ka'tah tokens spawned per click (one per unit)
 DICE_COUNT        = 10     -- dice spawned per click
 DICE_FILE         = "dice/custodes_d6_crest.png"   -- or "dice/custodes_d6_spear.png"
 TOKEN_SCALE       = 0.6    -- size of spawned tokens
-BUTTON_SCALE      = 500    -- if buttons overlap each other, lower this a little
+PANEL_SCALE       = 1.0    -- size of the button panel (2 = twice as big)
 AUTO_UPDATE       = true   -- set to false to freeze this copy of the script
 SCRIPT_PATH       = "spawner/custodes_spawner.lua"
 
@@ -172,11 +172,11 @@ local CLEAR     = {0, 0, 0, 0}
 local layout = nil
 
 ---------------------------------------------------------------------------
--- Board UI
+-- Button panel
 ---------------------------------------------------------------------------
 function onLoad()
   if AUTO_UPDATE then checkForUpdate() end
-  -- wait for the board image to load so its size is known, then lay out the buttons
+  -- wait for the model to load so its size is known, then lay out the buttons
   Wait.condition(function() Wait.frames(buildUI, 3) end,
                  function() return not self.loading_custom end, 20, buildUI)
 end
@@ -193,7 +193,7 @@ local function normalise(text)
 end
 
 function checkForUpdate()
-  -- straight after an update the board reloads; skip one check so it can never loop
+  -- straight after an update the model reloads; skip one check so it can never loop
   if self.memo == UPDATE_FLAG then
     self.memo = ""
     return
@@ -215,18 +215,36 @@ end
 
 function noop() end
 
+menuOpen = true
+
+-- The buttons sit on a panel lying on the table just in front of the model. Sizes are in
+-- table units and divided by the model's scale, so the panel looks the same whatever the model.
+function computeLayout()
+  local b  = self.getBoundsNormalized()
+  local sc = self.getScale().x
+  local u  = PANEL_SCALE / sc                                  -- one layout unit, in local units
+  local front = (b.offset.z + b.size.z / 2) / sc               -- front edge of the model
+  layout = {
+    u  = u,
+    x0 = b.offset.x / sc,
+    y  = (b.offset.y - b.size.y / 2 + 0.12) / sc,              -- just above the table
+    z0 = front + 0.6 / sc + 3.6 * u,                           -- centre of the 8 x 7.2 panel
+  }
+  layout.spawnFrom = layout.z0 + 3.6 * u                       -- spawns land in front of the panel
+end
+
 function buildUI()
   self.clearButtons()
-  local b  = self.getBoundsNormalized()
-  local sc = self.getScale()
-  local w, h, th = b.size.x / sc.x, b.size.z / sc.z, b.size.y / sc.y
-  if not (w > 0 and h > 0) then w, h, th = 8, 7.2, 0.2 end
-  -- the layout is designed on an 8 x 7.2 board and stretched to the real one
-  layout = {fx = w / 8, fz = h / 7.2, f = math.min(w / 8, h / 7.2), y = th / 2 + 0.05, halfH = h / 2}
+  computeLayout()
+  if not menuOpen then
+    button("Open Custodes spawner", "toggleMenu", 0, -3.1, "Show the spawner buttons", 3.4)
+    return
+  end
 
-  label("ADEPTUS CUSTODES", -3.0, 0.42, GOLD)
-  label("Cards, tokens and dice", -2.58, 0.17, MUTED)
-  label("Detachments", -2.05, 0.22, GOLD)
+  label("ADEPTUS CUSTODES", 0, -3.0, 0.42, GOLD)
+  label("Cards, tokens and dice", 0, -2.58, 0.17, MUTED)
+  button("Hide", "toggleMenu", 3.0, -3.0, "Hide the spawner buttons", 1.2)
+  label("Detachments", 0, -2.05, 0.22, GOLD)
 
   local cols = {-2.6, 0, 2.6}
   for i, det in ipairs(DETACHMENTS) do
@@ -239,7 +257,7 @@ function buildUI()
            "Spawn the " .. det.name .. " rule card and stratagem deck")
   end
 
-  label("Army", 1.45, 0.22, GOLD)
+  label("Army", 0, 1.45, 0.22, GOLD)
   button("Army rules",              "btnArmyRules", cols[1], 2.0,  "Spawn the 4 army rule cards")
   button("Ka'tah stances",          "btnStances",   cols[2], 2.0,  "Spawn the 6 stance cards")
   button("Dice x" .. DICE_COUNT,    "btnDice",      cols[3], 2.0,  "Spawn custom D6s")
@@ -248,20 +266,30 @@ function buildUI()
   button("Full army kit",           "btnKit",       cols[3], 2.58, "Army rules, stances, tokens, markers and dice")
 end
 
-function label(text, z, size, color)
+function toggleMenu()
+  menuOpen = not menuOpen
+  buildUI()
+end
+
+-- x and z are in layout units on an 8 x 7.2 grid centred on the panel
+local function place(x, z)
+  return {layout.x0 + x * layout.u, layout.y, layout.z0 + z * layout.u}
+end
+
+function label(text, x, z, size, color)
   self.createButton({
     label = text, click_function = "noop", function_owner = self,
-    position = {0, layout.y, z * layout.fz}, width = 0, height = 0,
-    font_size = size * layout.f * BUTTON_SCALE, font_color = color,
+    position = place(x, z), width = 0, height = 0,
+    font_size = size * layout.u * 500, font_color = color,
   })
 end
 
-function button(text, fn, x, z, tip)
-  local f = layout.f * BUTTON_SCALE
+function button(text, fn, x, z, tip, w)
+  local f = layout.u * 500
   self.createButton({
     label = text, click_function = fn, function_owner = self,
-    position = {x * layout.fx, layout.y, z * layout.fz},
-    width = 2.3 * f, height = 0.44 * f, font_size = 0.17 * f,
+    position = place(x, z),
+    width = (w or 2.3) * f, height = 0.44 * f, font_size = 0.17 * f,
     color = BTN, hover_color = BTN_HOVER, press_color = BTN_PRESS, font_color = GOLD,
     tooltip = tip,
   })
@@ -293,12 +321,13 @@ local function T(s)
   return {posX = 0, posY = 0, posZ = 0, rotX = 0, rotY = 0, rotZ = 0, scaleX = s, scaleY = 1, scaleZ = s}
 end
 
--- item i of n in a row below the board; spacing is in world units
+-- item i of n in a row in front of the panel; spacing is in table units
 local function spawnPos(i, n, row, spacing)
-  local sc = self.getScale()
-  local xl = ((i - (n + 1) / 2) * spacing) / sc.x
-  local zl = layout.halfH + (2.6 + row * 3.8) / sc.z
-  local p = self.positionToWorld({xl, 0, zl})
+  if not layout then computeLayout() end
+  local sc = self.getScale().x
+  local xl = layout.x0 + ((i - (n + 1) / 2) * spacing) / sc
+  local zl = layout.spawnFrom + (2.6 + row * 3.8) / sc
+  local p = self.positionToWorld({xl, layout.y, zl})
   return {p.x, p.y + 1.5, p.z}
 end
 
