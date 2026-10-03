@@ -1,19 +1,25 @@
---[[
+--[[ CUSTODES_SPAWNER
   Adeptus Custodes toolkit spawner for Tabletop Simulator
   Spawns detachment rule cards and stratagem decks, army rules, ka'tah stances,
   the ka'tah token (7 states), marker tokens and custom D6s.
 
   SETUP: upload the custodes_tts_kit folder to a public GitHub repo, then set BASE_URL
   below to that repo's raw address, keeping the slash at the end.
+
+  AUTO-UPDATE: every time the board loads, it downloads this file from BASE_URL and,
+  if the copy on GitHub is different, installs it and reloads. Edit the script on
+  GitHub and every copy of the board picks up the change the next time it loads.
 ]]
 
-BASE_URL = "https://raw.githubusercontent.com/YOUR_GITHUB_NAME/YOUR_REPO_NAME/main/"
+BASE_URL = "https://raw.githubusercontent.com/Oliver-Sheaky/Custodes11thCodex/main/"
 
 KATAH_TOKEN_COUNT = 6      -- ka'tah tokens spawned per click (one per unit)
 DICE_COUNT        = 10     -- dice spawned per click
 DICE_FILE         = "dice/custodes_d6_crest.png"   -- or "dice/custodes_d6_spear.png"
 TOKEN_SCALE       = 0.6    -- size of spawned tokens
 BUTTON_SCALE      = 500    -- if buttons overlap each other, lower this a little
+AUTO_UPDATE       = true   -- set to false to freeze this copy of the script
+SCRIPT_PATH       = "spawner/custodes_spawner.lua"
 
 ---------------------------------------------------------------------------
 -- Content (generated from the card files; names show on hover and in deck search)
@@ -169,9 +175,42 @@ local layout = nil
 -- Board UI
 ---------------------------------------------------------------------------
 function onLoad()
+  if AUTO_UPDATE then checkForUpdate() end
   -- wait for the board image to load so its size is known, then lay out the buttons
   Wait.condition(function() Wait.frames(buildUI, 3) end,
                  function() return not self.loading_custom end, 20, buildUI)
+end
+
+---------------------------------------------------------------------------
+-- Auto-update from GitHub
+---------------------------------------------------------------------------
+local UPDATE_FLAG = "custodes-spawner-just-updated"
+
+local function normalise(text)
+  text = string.gsub(text or "", "\r", "")
+  text = string.gsub(text, "%s+$", "")
+  return text
+end
+
+function checkForUpdate()
+  -- straight after an update the board reloads; skip one check so it can never loop
+  if self.memo == UPDATE_FLAG then
+    self.memo = ""
+    return
+  end
+  local link = BASE_URL .. SCRIPT_PATH .. "?nocache=" .. tostring(os.time())
+  WebRequest.get(link, function(req)
+    if req.is_error or (req.response_code and req.response_code ~= 200) then return end
+    local remote = req.text
+    -- only accept a real copy of this script, never an error page
+    if not remote or not string.find(remote, "CUSTODES_SPAWNER", 1, true) then return end
+    if normalise(remote) ~= normalise(self.getLuaScript()) then
+      broadcastToAll("Custodes spawner: installing the latest version from GitHub", GOLD)
+      self.memo = UPDATE_FLAG
+      self.setLuaScript(remote)
+      self.reload()
+    end
+  end)
 end
 
 function noop() end
