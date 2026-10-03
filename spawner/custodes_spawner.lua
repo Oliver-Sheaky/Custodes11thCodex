@@ -177,7 +177,7 @@ end
 
 function noop() end
 
-menuOpen = true
+menuOpen = false
 
 -- The buttons sit on a panel lying on the table just in front of the model. Sizes are in
 -- table units and divided by the model's scale, so the panel looks the same whatever the model.
@@ -206,24 +206,25 @@ function buildUI()
   label("ADEPTUS CUSTODES", 0, -3.0, 0.42, GOLD)
   label("Cards and tokens", 0, -2.58, 0.17, MUTED)
   button("Hide", "toggleMenu", 3.0, -3.0, "Hide the spawner buttons", 1.2)
-  label("Detachments", 0, -2.05, 0.22, GOLD)
 
   local cols = {-2.6, 0, 2.6}
+
+  label("Army", 0, -2.05, 0.22, GOLD)
+  button("Army rules",     "btnArmyRules", cols[1], -1.5,  "Spawn the 4 army rule cards")
+  button("Ka'tah stances", "btnStances",   cols[2], -1.5,  "Spawn the 6 stance cards")
+  button("Ka'tah token",   "btnKatah",     cols[3], -1.5,  "Spawn a ready/stance token (keys 1-7 switch state)")
+  button("Full army kit",  "btnKit",       cols[2], -0.92, "Army rules, stances and tokens")
+
+  label("Detachments", 0, -0.34, 0.22, GOLD)
   for i, det in ipairs(DETACHMENTS) do
     local fn = "spawnDetachment_" .. i
     _G[fn] = function(obj, color, alt) spawnDetachment(i) end
     local col = ((i - 1) % 3) + 1
     local row = math.floor((i - 1) / 3)
     if i == #DETACHMENTS and #DETACHMENTS % 3 == 1 then col = 2 end   -- centre a lone last button
-    button(det.name, fn, cols[col], -1.5 + row * 0.58,
+    button(det.name, fn, cols[col], 0.24 + row * 0.58,
            "Spawn the " .. det.name .. " rule card and stratagem deck")
   end
-
-  label("Army", 0, 1.45, 0.22, GOLD)
-  button("Army rules",     "btnArmyRules", cols[1], 2.0,  "Spawn the 4 army rule cards")
-  button("Ka'tah stances", "btnStances",   cols[2], 2.0,  "Spawn the 6 stance cards")
-  button("Ka'tah token",   "btnKatah",     cols[3], 2.0,  "Spawn a ready/stance token (keys 1-7 switch state)")
-  button("Full army kit",  "btnKit",       cols[2], 2.58, "Army rules, stances and tokens")
 end
 
 function toggleMenu()
