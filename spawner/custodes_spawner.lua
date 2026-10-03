@@ -1,7 +1,7 @@
 --[[ CUSTODES_SPAWNER
   Adeptus Custodes toolkit spawner for Tabletop Simulator (lives on a model)
   Spawns detachment rule cards and stratagem decks, army rules, ka'tah stances,
-  the ka'tah token (7 states) and marker tokens.
+  the ka'tah token (7 states).
 
   SETUP: upload the custodes_tts_kit folder to a public GitHub repo, then set BASE_URL
   below to that repo's raw address, keeping the slash at the end.
@@ -13,7 +13,6 @@
 
 BASE_URL = "https://raw.githubusercontent.com/Oliver-Sheaky/Custodes11thCodex/main/"
 
-KATAH_TOKEN_COUNT = 6      -- ka'tah tokens spawned per click (one per unit)
 TOKEN_SCALE       = 0.6    -- size of spawned tokens
 TOKEN_THICKNESS   = 0.10   -- thickness of the custom tile tokens (TTS minimum)
 PANEL_SCALE       = 1.0    -- size of the button panel (2 = twice as big)
@@ -122,43 +121,6 @@ At the start of your Command phase, your units with this ability become readied.
 [9C978C]Key 1: ready again[-]]==]},
 }
 
-MARKERS = {
-  {file = "dreadful_foe.png", name = "Dreadful Foe", desc = [==[[E89242][b]ENEMY MARKER[/b][-]  [9C978C]Auric Champions detachment rule[-]
-
-[D6A840][b]Assemblage of Might[/b][-]
-In your Command phase, you may name one enemy unit as a dreadful foe unit until the start of your next Command phase. Attacks by friendly [b]ADEPTUS CUSTODES CHARACTER[/b] models against a dreadful foe unit have +1 to wound rolls.
-
-[D6A840][b]DURATION[/b][-]  Until the start of your next Command phase.]==]},
-  {file = "prosecuted.png", name = "Prosecuted", desc = [==[[E89242][b]ENEMY MARKER[/b][-]  [9C978C]Null Maiden Vigil stratagem[-]
-
-[D6A840][b]Psy-chaff Volley[/b][-]
-Pick one enemy unit hit by those attacks; it is prosecuted until the end of the turn:
-• Attacks against a prosecuted unit have +1 AP.
-
-[D6A840][b]DURATION[/b][-]  Until the end of the turn.]==]},
-  {file = "gravimetric_grenade.png", name = "Gravimetric Grenade", desc = [==[[E89242][b]ENEMY MARKER[/b][-]  [9C978C]Solar Watch stratagem[-]
-
-Pick one visible enemy unit within 12" of your unit. When that unit declares a charge, it has -1 to charge rolls.]==]},
-  {file = "golden_light.png", name = "Golden Light of the Moiraides", desc = [==[[D6A840][b]YOUR UNIT[/b][-]  [9C978C]Dread Host stratagem[-]
-
-Until the start of your next turn:
-• Attacks against your unit have -1 to hit rolls.
-• Enemy units cannot make snap shooting attacks against your unit.
-
-[D6A840][b]DURATION[/b][-]  Until the start of your next turn.]==]},
-  {file = "honoured_interred.png", name = "Honoured Interred (Aura)", desc = [==[[D6A840][b]YOUR UNIT[/b][-]  [9C978C]Might of the Moritoi stratagem[-]
-
-Your unit gains this ability:
-[b]Honoured Interred (Aura):[/b] Friendly [b]ADEPTUS CUSTODES[/b] units within 6" of this unit may re-roll hit rolls of 1.]==]},
-  {file = "objective_secured.png", name = "Objective Secured", desc = [==[[D6A840][b]OBJECTIVE[/b][-]  [9C978C]Emperor's Chosen and Grav-Assault Force stratagems[-]
-
-[D6A840][b]Impenetrable Bastion[/b][-]
-Pick one objective your unit is controlling: that objective is secured.
-
-[D6A840][b]Victory Before Death[/b][-]
-Pick one objective that your unit was controlling when it was destroyed and that has no enemy units (excluding [b]AIRCRAFT[/b] units) within range: that objective is secured.]==]},
-}
-
 ---------------------------------------------------------------------------
 -- Colours (match the cards)
 ---------------------------------------------------------------------------
@@ -258,11 +220,10 @@ function buildUI()
   end
 
   label("Army", 0, 1.45, 0.22, GOLD)
-  button("Army rules",              "btnArmyRules", cols[1], 2.0,  "Spawn the 4 army rule cards")
-  button("Ka'tah stances",          "btnStances",   cols[2], 2.0,  "Spawn the 6 stance cards")
-  button("Ka'tah tokens x" .. KATAH_TOKEN_COUNT, "btnKatah", cols[1], 2.58, "Spawn ready/stance tokens (keys 1-7 switch state)")
-  button("Markers",                 "btnMarkers",   cols[2], 2.58, "Spawn one of each marker token")
-  button("Full army kit",           "btnKit",       cols[3], 2.58, "Army rules, stances, tokens and markers")
+  button("Army rules",     "btnArmyRules", cols[1], 2.0,  "Spawn the 4 army rule cards")
+  button("Ka'tah stances", "btnStances",   cols[2], 2.0,  "Spawn the 6 stance cards")
+  button("Ka'tah token",   "btnKatah",     cols[3], 2.0,  "Spawn a ready/stance token (keys 1-7 switch state)")
+  button("Full army kit",  "btnKit",       cols[2], 2.58, "Army rules, stances and tokens")
 end
 
 function toggleMenu()
@@ -297,15 +258,13 @@ end
 ---------------------------------------------------------------------------
 -- Button handlers
 ---------------------------------------------------------------------------
-function btnArmyRules() spawnArmyRules(1, 1, 0) end
-function btnStances()   spawnStances(1, 1, 0) end
-function btnKatah()     spawnKatahTokens(0) end
-function btnMarkers()   spawnMarkers(0) end
+function btnArmyRules() spawnArmyRules() end
+function btnStances()   spawnStances() end
+function btnKatah()     spawnKatahTokens() end
 function btnKit()
-  spawnArmyRules(1, 2, 0)
-  spawnStances(2, 2, 0)
-  spawnKatahTokens(1)
-  spawnMarkers(2)
+  spawnArmyRules()
+  spawnStances()
+  spawnKatahTokens()
 end
 
 ---------------------------------------------------------------------------
@@ -328,8 +287,8 @@ local function spawnPos(i, n, row, spacing)
   return {p.x, p.y + 1.5, p.z}
 end
 
-local function spawnRot()
-  return {0, self.getRotation().y, 0}
+local function spawnRot(faceDown)
+  return {faceDown and 180 or 0, self.getRotation().y, 0}
 end
 
 local function deckEntry(face, back, w, h, hidden)
@@ -357,13 +316,13 @@ function spawnDeck(key, face, back, w, h, cards, deckName, pos)
   local data = {Name = "DeckCustom", Transform = T(), Nickname = deckName, Description = "",
                 DeckIDs = ids, CustomDeck = cd, ContainedObjects = objs, Hands = false, Tooltip = true,
                 ColorDiffuse = {r = 0.713, g = 0.713, b = 0.713}}
-  return spawnObjectJSON({json = JSON.encode(data), position = pos, rotation = spawnRot()})
+  return spawnObjectJSON({json = JSON.encode(data), position = pos, rotation = spawnRot(true)})
 end
 
 function spawnSingleCard(key, face, back, name, desc, pos)
   local entry = deckEntry(face, back, 1, 1, true)
   local data = cardObj(key, 0, entry, name, desc, true)
-  return spawnObjectJSON({json = JSON.encode(data), position = pos, rotation = spawnRot()})
+  return spawnObjectJSON({json = JSON.encode(data), position = pos, rotation = spawnRot(true)})
 end
 
 local function tokenData(file, name, desc)
@@ -374,28 +333,41 @@ local function tokenData(file, name, desc)
                          CustomTile = {Type = 1, Thickness = TOKEN_THICKNESS, Stackable = false, Stretch = true}}}
 end
 
+-- fixed lateral lane per card type, in table units; every spawn of that type lands in the
+-- same spot no matter which button or detachment triggered it, so repeats stack into one
+-- pile and different types never mix together
+local LANES = {rule = -4.8, strat = -1.6, army = 1.6, stance = 4.8}
+
+local function lanePos(lane)
+  if not layout then computeLayout() end
+  local sc = self.getScale().x
+  local xl = layout.x0 + LANES[lane] / sc
+  local zl = layout.spawnFrom + 2.6 / sc
+  local p = self.positionToWorld({xl, layout.y, zl})
+  return {p.x, p.y + 1.5, p.z}
+end
+
 function spawnDetachment(i)
   local d = DETACHMENTS[i]
   spawnSingleCard(520 + i, "cards/detachment_rules/" .. d.ruleFile, "cards/detachment_rules/00_detachment_rule_back.png",
-                  d.rule, d.name .. " detachment rule", spawnPos(1, 2, 0, 3.2))
+                  d.rule, d.name .. " detachment rule", lanePos("rule"))
   spawnDeck(500 + i, "cards/stratagems/" .. d.sheet, "cards/stratagems/00_card_back.png",
-            d.w, d.h, d.cards, d.name .. " stratagems", spawnPos(2, 2, 0, 3.2))
+            d.w, d.h, d.cards, d.name .. " stratagems", lanePos("strat"))
 end
 
-function spawnArmyRules(i, n, row)
+function spawnArmyRules()
   spawnDeck(541, "cards/army/army_rules_sheet.png", "cards/army/army_rule_back.png", 3, 2,
-            ARMY_RULES, "Army rules", spawnPos(i, n, row, 3.2))
+            ARMY_RULES, "Army rules", lanePos("army"))
 end
 
-function spawnStances(i, n, row)
+function spawnStances()
   spawnDeck(542, "cards/army/stances_sheet.png", "cards/army/stance_back.png", 4, 2,
-            STANCES, "Ka'tah stances", spawnPos(i, n, row, 3.2))
+            STANCES, "Ka'tah stances", lanePos("stance"))
 end
 
 -- TTS only builds a state's image the first time an object switches to it, which is what
--- causes the visible hitch when flipping ka'tah tokens; flip through every state once right
--- after spawn so that's already done before a player hits a hotkey mid-game. Identical
--- tokens share the same cached image, so priming just the first one covers the whole batch.
+-- causes the visible hitch when flipping the ka'tah token; flip through every state once
+-- right after spawn so that's already done before a player hits a hotkey mid-game.
 local function primeStates(obj, total)
   -- setState() destroys the old object and returns the new state's object,
   -- so the reference has to be threaded through rather than reused
@@ -411,24 +383,15 @@ local function primeStates(obj, total)
   Wait.time(function() cycle(obj, 2) end, 0.15)
 end
 
-function spawnKatahTokens(row)
-  for t = 1, KATAH_TOKEN_COUNT do
-    local first = KATAH_STATES[1]
-    local data = tokenData(first.file, first.name, first.desc)
-    local states = {}
-    for s = 2, #KATAH_STATES do
-      local st = KATAH_STATES[s]
-      states[tostring(s)] = tokenData(st.file, st.name, st.desc)
-    end
-    data.States = states
-    local obj = spawnObjectJSON({json = JSON.encode(data), position = spawnPos(t, KATAH_TOKEN_COUNT, row, 2.2), rotation = spawnRot()})
-    if t == 1 then primeStates(obj, #KATAH_STATES) end
+function spawnKatahTokens()
+  local first = KATAH_STATES[1]
+  local data = tokenData(first.file, first.name, first.desc)
+  local states = {}
+  for s = 2, #KATAH_STATES do
+    local st = KATAH_STATES[s]
+    states[tostring(s)] = tokenData(st.file, st.name, st.desc)
   end
-end
-
-function spawnMarkers(row)
-  for m, mk in ipairs(MARKERS) do
-    spawnObjectJSON({json = JSON.encode(tokenData(mk.file, mk.name, mk.desc)),
-                     position = spawnPos(m, #MARKERS, row, 2.2), rotation = spawnRot()})
-  end
+  data.States = states
+  local obj = spawnObjectJSON({json = JSON.encode(data), position = spawnPos(1, 1, 0, 2.2), rotation = spawnRot()})
+  primeStates(obj, #KATAH_STATES)
 end
