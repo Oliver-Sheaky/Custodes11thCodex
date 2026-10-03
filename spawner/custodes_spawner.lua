@@ -13,8 +13,8 @@
 
 BASE_URL = "https://raw.githubusercontent.com/Oliver-Sheaky/Custodes11thCodex/main/"
 
-TOKEN_SCALE       = 0.3    -- size of spawned tokens
-TOKEN_THICKNESS   = 0.01   -- thickness of the custom tile tokens (TTS minimum)
+TOKEN_SCALE       = 0.5    -- size of spawned tokens
+TOKEN_THICKNESS   = 0.02   -- thickness of the custom tile tokens (TTS minimum)
 PANEL_SCALE       = 1.0    -- size of the button panel (2 = twice as big)
 PANEL_HEIGHT      = 0.5    -- how far above the table the buttons float; raise this if they sit below the table
 AUTO_UPDATE       = true   -- set to false to freeze this copy of the script
