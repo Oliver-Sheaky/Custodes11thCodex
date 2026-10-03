@@ -18,6 +18,7 @@ DICE_COUNT        = 10     -- dice spawned per click
 DICE_FILE         = "dice/custodes_d6_crest.png"   -- or "dice/custodes_d6_spear.png"
 TOKEN_SCALE       = 0.6    -- size of spawned tokens
 PANEL_SCALE       = 1.0    -- size of the button panel (2 = twice as big)
+PANEL_HEIGHT      = 0.5    -- how far above the table the buttons float; raise this if they sit below the table
 AUTO_UPDATE       = true   -- set to false to freeze this copy of the script
 SCRIPT_PATH       = "spawner/custodes_spawner.lua"
 
@@ -227,7 +228,7 @@ function computeLayout()
   layout = {
     u  = u,
     x0 = b.offset.x / sc,
-    y  = (b.offset.y - b.size.y / 2 + 0.12) / sc,              -- just above the table
+    y  = (b.offset.y - b.size.y / 2 + PANEL_HEIGHT) / sc,      -- just above the table
     z0 = front + 0.6 / sc + 3.6 * u,                           -- centre of the 8 x 7.2 panel
   }
   layout.spawnFrom = layout.z0 + 3.6 * u                       -- spawns land in front of the panel
