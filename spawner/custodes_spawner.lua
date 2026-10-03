@@ -1,7 +1,7 @@
 --[[ CUSTODES_SPAWNER
   Adeptus Custodes toolkit spawner for Tabletop Simulator (lives on a model)
   Spawns detachment rule cards and stratagem decks, army rules, ka'tah stances,
-  the ka'tah token (7 states), marker tokens and custom D6s.
+  the ka'tah token (7 states) and marker tokens.
 
   SETUP: upload the custodes_tts_kit folder to a public GitHub repo, then set BASE_URL
   below to that repo's raw address, keeping the slash at the end.
@@ -14,9 +14,8 @@
 BASE_URL = "https://raw.githubusercontent.com/Oliver-Sheaky/Custodes11thCodex/main/"
 
 KATAH_TOKEN_COUNT = 6      -- ka'tah tokens spawned per click (one per unit)
-DICE_COUNT        = 10     -- dice spawned per click
-DICE_FILE         = "dice/custodes_d6_crest.png"   -- or "dice/custodes_d6_spear.png"
 TOKEN_SCALE       = 0.6    -- size of spawned tokens
+TOKEN_THICKNESS   = 0.10   -- thickness of the custom tile tokens (TTS minimum)
 PANEL_SCALE       = 1.0    -- size of the button panel (2 = twice as big)
 PANEL_HEIGHT      = 0.5    -- how far above the table the buttons float; raise this if they sit below the table
 AUTO_UPDATE       = true   -- set to false to freeze this copy of the script
@@ -243,7 +242,7 @@ function buildUI()
   end
 
   label("ADEPTUS CUSTODES", 0, -3.0, 0.42, GOLD)
-  label("Cards, tokens and dice", 0, -2.58, 0.17, MUTED)
+  label("Cards and tokens", 0, -2.58, 0.17, MUTED)
   button("Hide", "toggleMenu", 3.0, -3.0, "Hide the spawner buttons", 1.2)
   label("Detachments", 0, -2.05, 0.22, GOLD)
 
@@ -261,10 +260,9 @@ function buildUI()
   label("Army", 0, 1.45, 0.22, GOLD)
   button("Army rules",              "btnArmyRules", cols[1], 2.0,  "Spawn the 4 army rule cards")
   button("Ka'tah stances",          "btnStances",   cols[2], 2.0,  "Spawn the 6 stance cards")
-  button("Dice x" .. DICE_COUNT,    "btnDice",      cols[3], 2.0,  "Spawn custom D6s")
   button("Ka'tah tokens x" .. KATAH_TOKEN_COUNT, "btnKatah", cols[1], 2.58, "Spawn ready/stance tokens (keys 1-7 switch state)")
   button("Markers",                 "btnMarkers",   cols[2], 2.58, "Spawn one of each marker token")
-  button("Full army kit",           "btnKit",       cols[3], 2.58, "Army rules, stances, tokens, markers and dice")
+  button("Full army kit",           "btnKit",       cols[3], 2.58, "Army rules, stances, tokens and markers")
 end
 
 function toggleMenu()
@@ -301,7 +299,6 @@ end
 ---------------------------------------------------------------------------
 function btnArmyRules() spawnArmyRules(1, 1, 0) end
 function btnStances()   spawnStances(1, 1, 0) end
-function btnDice()      spawnDice(0) end
 function btnKatah()     spawnKatahTokens(0) end
 function btnMarkers()   spawnMarkers(0) end
 function btnKit()
@@ -309,7 +306,6 @@ function btnKit()
   spawnStances(2, 2, 0)
   spawnKatahTokens(1)
   spawnMarkers(2)
-  spawnDice(3)
 end
 
 ---------------------------------------------------------------------------
@@ -371,10 +367,11 @@ function spawnSingleCard(key, face, back, name, desc, pos)
 end
 
 local function tokenData(file, name, desc)
-  return {Name = "Custom_Token", Transform = T(TOKEN_SCALE), Nickname = name, Description = desc, Tooltip = true,
+  local img = url("tokens/" .. file)
+  return {Name = "Custom_Tile", Transform = T(TOKEN_SCALE), Nickname = name, Description = desc, Tooltip = true,
           ColorDiffuse = {r = 1, g = 1, b = 1},
-          CustomImage = {ImageURL = url("tokens/" .. file), ImageSecondaryURL = "", ImageScalar = 1.0, WidthScale = 0.0,
-                         CustomToken = {Thickness = 0.2, MergeDistancePixels = 15.0, StandUp = false, Stackable = false}}}
+          CustomImage = {ImageURL = img, ImageSecondaryURL = img, ImageScalar = 1.0, WidthScale = 0.0,
+                         CustomTile = {Type = 1, Thickness = TOKEN_THICKNESS, Stackable = false, Stretch = true}}}
 end
 
 function spawnDetachment(i)
@@ -395,6 +392,25 @@ function spawnStances(i, n, row)
             STANCES, "Ka'tah stances", spawnPos(i, n, row, 3.2))
 end
 
+-- TTS only builds a state's image the first time an object switches to it, which is what
+-- causes the visible hitch when flipping ka'tah tokens; flip through every state once right
+-- after spawn so that's already done before a player hits a hotkey mid-game. Identical
+-- tokens share the same cached image, so priming just the first one covers the whole batch.
+local function primeStates(obj, total)
+  -- setState() destroys the old object and returns the new state's object,
+  -- so the reference has to be threaded through rather than reused
+  local function cycle(o, n)
+    if o == nil or o.isDestroyed() then return end
+    if n > total then
+      o.setState(1)
+      return
+    end
+    local nxt = o.setState(n)
+    Wait.time(function() cycle(nxt, n + 1) end, 0.15)
+  end
+  Wait.time(function() cycle(obj, 2) end, 0.15)
+end
+
 function spawnKatahTokens(row)
   for t = 1, KATAH_TOKEN_COUNT do
     local first = KATAH_STATES[1]
@@ -405,7 +421,8 @@ function spawnKatahTokens(row)
       states[tostring(s)] = tokenData(st.file, st.name, st.desc)
     end
     data.States = states
-    spawnObjectJSON({json = JSON.encode(data), position = spawnPos(t, KATAH_TOKEN_COUNT, row, 2.2), rotation = spawnRot()})
+    local obj = spawnObjectJSON({json = JSON.encode(data), position = spawnPos(t, KATAH_TOKEN_COUNT, row, 2.2), rotation = spawnRot()})
+    if t == 1 then primeStates(obj, #KATAH_STATES) end
   end
 end
 
@@ -413,13 +430,5 @@ function spawnMarkers(row)
   for m, mk in ipairs(MARKERS) do
     spawnObjectJSON({json = JSON.encode(tokenData(mk.file, mk.name, mk.desc)),
                      position = spawnPos(m, #MARKERS, row, 2.2), rotation = spawnRot()})
-  end
-end
-
-function spawnDice(row)
-  for k = 1, DICE_COUNT do
-    local die = spawnObject({type = "Custom_Dice", position = spawnPos(k, DICE_COUNT, row, 1.3), rotation = spawnRot()})
-    die.setCustomObject({image = url(DICE_FILE), type = 1})
-    die.setName("Custodes D6")
   end
 end
